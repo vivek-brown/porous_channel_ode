@@ -6,7 +6,24 @@ from sklearn.preprocessing import StandardScaler
 from scipy.interpolate import interp1d
 
 from pinn import PINN_Model
-
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]})
+# for Palatino and other serif fonts use:
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "serif",
+    "font.serif": ["Palatino"],
+})
+# It's also possible to use the reduced notation by directly setting font.family:
+plt.rcParams.update({
+  "text.usetex": True,
+  "font.family": "Helvetica"
+})
+import matplotlib
+matplotlib.rc('xtick', labelsize=16)
+matplotlib.rc('ytick', labelsize=16)
 
 
 # @tf.function(jit_compile=True)
@@ -35,14 +52,14 @@ def main():
 
 
     x_f = np.random.uniform(-1,1,201)[:,None]
-    x_test = np.random.uniform(-1,1,101)[:,None]
+    x_test = np.random.uniform(-1,1,401)[:,None]
     # Par['x_f'] = x_f
 
 
 
     pinn_model = PINN_Model(Par)
-    n_epochs = 20000
-    batch_size = 20
+    n_epochs = 10000
+    batch_size = 50
 
     tensor = lambda x: tf.convert_to_tensor(x, dtype=tf.float32)
 
@@ -85,6 +102,38 @@ def main():
     plt.xlabel("Epoch", fontsize=18)
     plt.ylabel("MSE", fontsize=18)
     plt.savefig(Par["address"] + "/convergence.png")
+    plt.close()
+
+    x_test = np.linspace(0,1,401)[:,None]
+    x_test = tensor(x_test)
+    #Loading best pinn model
+    pinn_model_number = index_list[int(np.argmin(np.array(train_loss_list)))]
+    print('Best PINN model: ', pinn_model_number)
+    pinn_model_address = "pinn_models/model_"+str(pinn_model_number)
+    pinn_model.load_weights(pinn_model_address)
+
+    u_pred = pinn_model(x_test)
+    temp = pinn_model.PDE_loss(x_test)
+    u_x = temp[0]
+    u_xx = temp[1]
+    u_xxx = temp[2]
+    u_xxxx = temp[3]
+
+    plt.close()
+    fig = plt.figure(figsize=(7,11))
+    plt.plot(x_test, u_pred, linewidth=2, label='f')
+    plt.plot(x_test, u_x, linewidth=2 , label="f'")
+    # plt.plot(x_test, u_xx, linewidth=2 , label="f''")
+    # plt.plot(x_test, u_xxx, linewidth=2 , label="f'''")
+    # plt.plot(x_test, u_xxxx, linewidth=2 , label="f''''")
+    plt.legend(fontsize=16)
+    plt.xlabel('y*', fontsize=18)
+    plt.ylabel("f,f' ", fontsize=18)
+    plt.title('Re = 0.001', fontsize=20)
+    plt.grid()
+    plt.savefig('true_vs_prediction.png', dpi=500)
+    plt.close()
+
 
     print('Complete')
 
